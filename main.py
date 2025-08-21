@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from flask_mail import Mail, Message
 import json
@@ -74,7 +73,7 @@ def submit_signup():
     school = request.form['school']
     marks = request.form['marks']
     password = request.form['password']
-    
+
     # Verify school
     if verify_school_online(school):
         # Save user data
@@ -93,7 +92,7 @@ def submit_signup():
         }
         users.append(user_data)
         save_data(USERS_FILE, users)
-        
+
         # Add to admin notifications
         notifications = load_data(NOTIFICATIONS_FILE)
         notification = {
@@ -104,7 +103,7 @@ def submit_signup():
         }
         notifications.append(notification)
         save_data(NOTIFICATIONS_FILE, notifications)
-        
+
         flash('Sign up successful! Please wait for admin approval to sign in.', 'success')
         return redirect(url_for('signin'))
     else:
@@ -122,7 +121,7 @@ def admin_dashboard():
 def signin_submit():
     name = request.form['name']
     password = request.form['password']
-    
+
     users = load_data(USERS_FILE)
     for user in users:
         if user['name'] == name and user.get('password') == password:
@@ -134,7 +133,7 @@ def signin_submit():
             else:
                 flash('Your account is still pending approval.', 'error')
                 return redirect(url_for('signin'))
-    
+
     flash('Invalid credentials or account not found.', 'error')
     return redirect(url_for('signin'))
 
@@ -143,7 +142,7 @@ def student_dashboard():
     if 'user_id' not in session:
         flash('Please sign in first.', 'error')
         return redirect(url_for('signin'))
-    
+
     user_data = session.get('user_data')
     return render_template('student_dashboard.html', user=user_data)
 
@@ -152,30 +151,30 @@ def template_gallery():
     if 'user_id' not in session:
         flash('Please sign in first.', 'error')
         return redirect(url_for('signin'))
-    
+
     return render_template('template_gallery.html')
 
 @app.route('/update_marks', methods=['POST'])
 def update_marks():
     if 'user_id' not in session:
         return redirect(url_for('signin'))
-    
+
     users = load_data(USERS_FILE)
     user_name = session['user_id']
-    
+
     # Get unit marks from form
     unit_marks = {}
     for key in request.form:
         if key.startswith('unit_'):
             unit_marks[key] = request.form[key]
-    
+
     # Update user's unit marks
     for user in users:
         if user['name'] == user_name:
             user['unit_marks'] = unit_marks
             session['user_data'] = user
             break
-    
+
     save_data(USERS_FILE, users)
     flash('Marks updated successfully!', 'success')
     return redirect(url_for('student_dashboard'))
@@ -186,12 +185,12 @@ def logout():
     flash('Logged out successfully!', 'success')
     return redirect(url_for('home'))
 
-def create_certificate(student_name, school_name, class_name, unit_marks, template='classic'):
+def create_certificate(student_name, school_name, class_name, unit_marks, template='classic', custom_design=None):
     # Create high-resolution certificate image (1800x1200 pixels for better quality)
     width, height = 1800, 1200
     img = Image.new('RGB', (width, height), color='white')
     draw = ImageDraw.Draw(img)
-    
+
     # Template-specific color palettes
     if template == 'classic':
         # Enhanced color palette (existing)
@@ -238,6 +237,18 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
         bg_gradient_start = (245, 243, 255)
         bg_gradient_end = (237, 233, 254)
     
+    # Placeholder for custom design logic: If custom_design is provided, override default styles
+    if custom_design:
+        # Example: Apply a different background or border based on custom_design input
+        if custom_design.get("background_color"):
+            img = Image.new('RGB', (width, height), color=custom_design["background_color"])
+            draw = ImageDraw.Draw(img)
+        if custom_design.get("border_color"):
+            gold_color = custom_design["border_color"]
+        if custom_design.get("text_color"):
+            gray_color = custom_design["text_color"] # simplistic override for example
+
+
     # Create gradient background effect based on template
     for y in range(height):
         ratio = y / height
@@ -246,7 +257,7 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
         b = int(bg_gradient_start[2] + (bg_gradient_end[2] - bg_gradient_start[2]) * ratio)
         color = (r, g, b)
         draw.line([(0, y), (width, y)], fill=color)
-    
+
     # Draw ornate border design
     border_width = 20
     # Outer border
@@ -255,7 +266,7 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
     inner_margin = 40
     draw.rectangle([inner_margin, inner_margin, width-inner_margin, height-inner_margin], 
                    outline=dark_gold, width=8)
-    
+
     # Add corner decorations
     corner_size = 80
     for corner_x, corner_y in [(inner_margin, inner_margin), (width-inner_margin-corner_size, inner_margin),
@@ -266,7 +277,7 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
         # Inner corner decoration
         draw.rectangle([corner_x+15, corner_y+15, corner_x+corner_size-15, corner_y+corner_size-15], 
                        outline=dark_gold, width=2)
-    
+
     # Enhanced font loading with better fallbacks
     def load_font(size, weight='normal'):
         font_paths = [
@@ -275,14 +286,14 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
             f"/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
             "arial.ttf", "times.ttf"
         ]
-        
+
         for font_path in font_paths:
             try:
                 return ImageFont.truetype(font_path, size)
             except (OSError, IOError):
                 continue
         return ImageFont.load_default()
-    
+
     # Load fonts with different sizes
     title_font = load_font(72)
     subtitle_font = load_font(36)
@@ -290,61 +301,61 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
     body_font = load_font(24)
     name_font = load_font(48)
     small_font = load_font(20)
-    
+
     # Enhanced logo section
     logo_bg_rect = [60, 60, 400, 140]
     draw.rectangle(logo_bg_rect, fill=royal_blue, outline=gold_color, width=3)
     draw.text((80, 85), "TRUST PAPER", fill='white', font=header_font)
     draw.text((80, 115), "Certificate Authority", fill=light_gray, font=small_font)
-    
+
     # Main title with shadow effect
     title_text = "CERTIFICATE"
     title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
     title_width = title_bbox[2] - title_bbox[0]
     title_x = (width - title_width) // 2
-    
+
     # Shadow effect
     draw.text((title_x + 3, 183), title_text, fill=gray_color, font=title_font)
     # Main title
     draw.text((title_x, 180), title_text, fill=royal_blue, font=title_font)
-    
+
     # Subtitle with better spacing
     subtitle_text = "OF ACADEMIC EXCELLENCE"
     subtitle_bbox = draw.textbbox((0, 0), subtitle_text, font=subtitle_font)
     subtitle_width = subtitle_bbox[2] - subtitle_bbox[0]
     subtitle_x = (width - subtitle_width) // 2
     draw.text((subtitle_x, 260), subtitle_text, fill=accent_blue, font=subtitle_font)
-    
+
     # Decorative line under subtitle
     line_y = 310
     line_start = subtitle_x
     line_end = subtitle_x + subtitle_width
     draw.rectangle([line_start, line_y, line_end, line_y + 4], fill=gold_color)
-    
+
     # Presented to section
     presented_text = "THIS CERTIFICATE IS PROUDLY PRESENTED TO"
     presented_bbox = draw.textbbox((0, 0), presented_text, font=body_font)
     presented_width = presented_bbox[2] - presented_bbox[0]
     presented_x = (width - presented_width) // 2
     draw.text((presented_x, 360), presented_text, fill=gray_color, font=body_font)
-    
+
     # Student name with enhanced styling
     name_bbox = draw.textbbox((0, 0), student_name.upper(), font=name_font)
     name_width = name_bbox[2] - name_bbox[0]
     name_x = (width - name_width) // 2
-    
+
     # Name background
     name_bg_padding = 20
     draw.rectangle([name_x - name_bg_padding, 405, name_x + name_width + name_bg_padding, 465], 
                    fill=light_gray, outline=gold_color, width=2)
     draw.text((name_x, 415), student_name.upper(), fill=navy_blue, font=name_font)
-    
+
     # Calculate performance metrics
     total_marks = 0
     units_count = 0
     highest_mark = 0
     unit_details = []
-    
+
     for unit, marks in unit_marks.items():
         if marks and str(marks).strip():
             try:
@@ -355,9 +366,9 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
                 unit_details.append(f"{unit.replace('_', ' ').title()}: {mark_value}%")
             except ValueError:
                 pass
-    
+
     average_marks = total_marks / units_count if units_count > 0 else 0
-    
+
     # Performance grade calculation
     if average_marks >= 90:
         grade = "OUTSTANDING"
@@ -371,7 +382,7 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
     else:
         grade = "SATISFACTORY"
         grade_color = gray_color
-    
+
     # Achievement text with better formatting
     achievement_lines = [
         "In recognition of exceptional academic performance and dedication",
@@ -379,18 +390,18 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
         f"Achieving an overall average of {average_marks:.1f}% with grade: {grade}",
         f"Awarded on {datetime.now().strftime('%B %d, %Y')}"
     ]
-    
+
     start_y = 520
     for i, text in enumerate(achievement_lines):
         text_bbox = draw.textbbox((0, 0), text, font=body_font)
         text_width = text_bbox[2] - text_bbox[0]
         text_x = (width - text_width) // 2
-        
+
         if i == 2:  # Grade line - highlight it
             draw.text((text_x, start_y + i * 35), text, fill=grade_color, font=body_font)
         else:
             draw.text((text_x, start_y + i * 35), text, fill=gray_color, font=body_font)
-    
+
     # Detailed marks section
     marks_y = 680
     marks_title = "DETAILED PERFORMANCE:"
@@ -398,38 +409,38 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
     marks_title_width = marks_title_bbox[2] - marks_title_bbox[0]
     marks_title_x = (width - marks_title_width) // 2
     draw.text((marks_title_x, marks_y), marks_title, fill=royal_blue, font=header_font)
-    
+
     # Display unit marks in columns
     if unit_details:
         cols = 2
         col_width = 400
         start_x = (width - (cols * col_width)) // 2
-        
+
         for i, detail in enumerate(unit_details):
             col = i % cols
             row = i // cols
             x = start_x + col * col_width
             y = marks_y + 50 + row * 30
             draw.text((x, y), detail, fill=gray_color, font=small_font)
-    
+
     # Enhanced signature section
     sig_section_y = height - 200
-    
+
     # Signature box
     sig_box = [width - 350, sig_section_y, width - 50, sig_section_y + 120]
     draw.rectangle(sig_box, outline=gold_color, width=2)
-    
+
     # Authority signature
     draw.text((width - 330, sig_section_y + 20), "Authorized Signature", fill=gray_color, font=small_font)
     draw.rectangle([width - 330, sig_section_y + 50, width - 120, sig_section_y + 53], fill=gray_color)
     draw.text((width - 330, sig_section_y + 65), "ADMIN", fill=royal_blue, font=header_font)
     draw.text((width - 330, sig_section_y + 95), "Trust Paper Academy", fill=gray_color, font=small_font)
-    
+
     # Enhanced seal design
     seal_center_x = width - 200
     seal_center_y = 280
     seal_radius = 80
-    
+
     # Multiple concentric circles for better seal effect
     for i, radius in enumerate([seal_radius, seal_radius-15, seal_radius-30]):
         width_val = 6 - i * 2
@@ -437,57 +448,60 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
         draw.ellipse([seal_center_x - radius, seal_center_y - radius,
                       seal_center_x + radius, seal_center_y + radius], 
                      outline=color, width=width_val)
-    
+
     # Seal text
     draw.text((seal_center_x - 35, seal_center_y - 15), "OFFICIAL", fill=gold_color, font=small_font)
     draw.text((seal_center_x - 25, seal_center_y + 5), "SEAL", fill=gold_color, font=small_font)
-    
+
     # Add watermark
     watermark_text = "TrustPaper Certified"
     watermark_font = load_font(60)
     watermark_bbox = draw.textbbox((0, 0), watermark_text, font=watermark_font)
     watermark_width = watermark_bbox[2] - watermark_bbox[0]
-    
+
     # Create semi-transparent watermark effect
     watermark_img = Image.new('RGBA', (watermark_width + 40, 80), (255, 255, 255, 0))
     watermark_draw = ImageDraw.Draw(watermark_img)
     watermark_draw.text((20, 10), watermark_text, fill=(200, 200, 200, 50), font=watermark_font)
-    
+
     # Rotate and paste watermark
     rotated_watermark = watermark_img.rotate(45, expand=1)
     img.paste(rotated_watermark, (width//2 - rotated_watermark.width//2, height//2 - rotated_watermark.height//2), rotated_watermark)
-    
+
     return img
 
 @app.route('/preview_certificate', methods=['POST'])
 def preview_certificate():
     if 'user_id' not in session:
         return redirect(url_for('signin'))
-    
+
     user_data = session.get('user_data')
     template = request.form.get('template', 'classic')
-    
+    custom_design = request.json.get('custom_design') if request.is_json else None
+
+
     if not user_data.get('unit_marks'):
         flash('Please enter your unit marks first before generating certificate.', 'error')
         return redirect(url_for('student_dashboard'))
-    
+
     # Generate certificate
     certificate_img = create_certificate(
         user_data['name'],
         user_data['school'],
         user_data['class'],
         user_data['unit_marks'],
-        template
+        template,
+        custom_design
     )
-    
+
     # Save to memory and convert to base64 for preview
     img_io = io.BytesIO()
     certificate_img.save(img_io, 'PNG', quality=95)
     img_io.seek(0)
-    
+
     # Convert to base64 for display
     img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
-    
+
     return render_template('certificate_preview.html', 
                          certificate_data=img_base64,
                          template=template,
@@ -497,41 +511,43 @@ def preview_certificate():
 def download_certificate():
     if 'user_id' not in session:
         return redirect(url_for('signin'))
-    
+
     user_data = session.get('user_data')
     template = request.form.get('template', 'classic')
-    
+    custom_design = request.json.get('custom_design') if request.is_json else None
+
     if not user_data.get('unit_marks'):
         flash('Please enter your unit marks first before generating certificate.', 'error')
         return redirect(url_for('student_dashboard'))
-    
+
     # Generate certificate
     certificate_img = create_certificate(
         user_data['name'],
         user_data['school'],
         user_data['class'],
         user_data['unit_marks'],
-        template
+        template,
+        custom_design
     )
-    
+
     # Save to memory
     img_io = io.BytesIO()
     certificate_img.save(img_io, 'PNG', quality=95)
     img_io.seek(0)
-    
+
     # Create filename
     filename = f"certificate_{user_data['name'].replace(' ', '_')}_{template}_{datetime.now().strftime('%Y%m%d')}.png"
-    
+
     return send_file(img_io, mimetype='image/png', as_attachment=True, download_name=filename)
 
 @app.route('/admin/approve/<int:notification_id>')
 def approve_user(notification_id):
     notifications = load_data(NOTIFICATIONS_FILE)
     users = load_data(USERS_FILE)
-    
+
     user_email = None
     user_name = None
-    
+
     for notification in notifications:
         if notification['id'] == notification_id:
             # Update user status
@@ -545,10 +561,10 @@ def approve_user(notification_id):
             # Remove notification
             notifications.remove(notification)
             break
-    
+
     save_data(NOTIFICATIONS_FILE, notifications)
     save_data(USERS_FILE, users)
-    
+
     # Send approval email
     if user_email:
         subject = "✅ Account Approved - TrustPaper"
@@ -564,14 +580,14 @@ Welcome to TrustPaper - Your Certificate Making Platform!
 
 Best regards,
 TrustPaper Team"""
-        
+
         if send_email(user_email, subject, body):
             flash('User approved successfully! Approval email sent.', 'success')
         else:
             flash('User approved successfully! (Email notification failed)', 'success')
     else:
         flash('User approved successfully! (No email available for notification)', 'success')
-    
+
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/students')
@@ -579,7 +595,7 @@ def view_all_students():
     users = load_data(USERS_FILE)
     approved_students = [user for user in users if user.get('status') == 'approved']
     pending_students = [user for user in users if user.get('status') == 'pending']
-    
+
     return render_template('student_list.html', 
                          approved_students=approved_students,
                          pending_students=pending_students,
@@ -590,10 +606,10 @@ def view_all_students():
 def remove_student(student_name, roll_no):
     users = load_data(USERS_FILE)
     notifications = load_data(NOTIFICATIONS_FILE)
-    
+
     student_removed = False
     student_email = None
-    
+
     # Remove from users
     for user in users[:]:  # Create a copy to iterate safely
         if user['name'] == student_name and user['roll_no'] == roll_no:
@@ -601,7 +617,7 @@ def remove_student(student_name, roll_no):
             users.remove(user)
             student_removed = True
             break
-    
+
     # Remove from notifications if exists
     for notification in notifications[:]:
         if (notification.get('type') == 'signup_request' and 
@@ -609,11 +625,11 @@ def remove_student(student_name, roll_no):
             notification['user']['roll_no'] == roll_no):
             notifications.remove(notification)
             break
-    
+
     if student_removed:
         save_data(USERS_FILE, users)
         save_data(NOTIFICATIONS_FILE, notifications)
-        
+
         # Send removal notification email
         if student_email:
             subject = "Account Removed - TrustPaper"
@@ -627,7 +643,7 @@ For any questions regarding this action, please contact the administrator.
 
 Best regards,
 TrustPaper Team"""
-            
+
             if send_email(student_email, subject, body):
                 flash(f'Student {student_name} removed successfully! Notification email sent.', 'success')
             else:
@@ -636,18 +652,18 @@ TrustPaper Team"""
             flash(f'Student {student_name} removed successfully!', 'success')
     else:
         flash('Student not found!', 'error')
-    
+
     return redirect(url_for('view_all_students'))
 
 @app.route('/admin/reject/<int:notification_id>')
 def reject_user(notification_id):
     notifications = load_data(NOTIFICATIONS_FILE)
     users = load_data(USERS_FILE)
-    
+
     user_email = None
     user_name = None
     user_to_remove = None
-    
+
     for notification in notifications:
         if notification['id'] == notification_id:
             # Find and remove user data
@@ -658,18 +674,18 @@ def reject_user(notification_id):
                     user_name = user['name']
                     user_to_remove = user
                     break
-            
+
             # Remove user from users list
             if user_to_remove:
                 users.remove(user_to_remove)
-            
+
             # Remove notification
             notifications.remove(notification)
             break
-    
+
     save_data(NOTIFICATIONS_FILE, notifications)
     save_data(USERS_FILE, users)
-    
+
     # Send rejection email
     if user_email:
         subject = "❌ Account Application Update - TrustPaper"
@@ -688,14 +704,14 @@ For any questions, please contact our support team.
 
 Best regards,
 TrustPaper Team"""
-        
+
         if send_email(user_email, subject, body):
             flash('User rejected! Rejection email sent.', 'info')
         else:
             flash('User rejected! (Email notification failed)', 'info')
     else:
         flash('User rejected! (No email available for notification)', 'info')
-    
+
     return redirect(url_for('admin_dashboard'))
 
 if __name__ == '__main__':

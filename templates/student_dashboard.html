@@ -293,10 +293,21 @@
                     <div class="form-group">
                         <label for="template">Choose Certificate Template</label>
                         <select id="template" name="template" style="width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 1rem;">
-                            <option value="classic">🏛️ Classic - Traditional gold and blue design</option>
-                            <option value="modern">🔷 Modern - Clean contemporary style</option>
-                            <option value="elegant">🎨 Elegant - Sophisticated brown and gold</option>
-                            <option value="vibrant">🌈 Vibrant - Colorful purple and yellow</option>
+                            <optgroup label="🤖 Your AI Designs">
+                                {% if user.custom_designs %}
+                                    {% for design in user.custom_designs %}
+                                    <option value="{{ design.name }}">🎨 {{ design.display_name }}</option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option disabled>No custom designs yet - Create one in Template Gallery!</option>
+                                {% endif %}
+                            </optgroup>
+                            <optgroup label="📚 Standard Templates">
+                                <option value="classic">🏛️ Classic - Traditional gold and blue design</option>
+                                <option value="modern">🔷 Modern - Clean contemporary style</option>
+                                <option value="elegant">🎨 Elegant - Sophisticated brown and gold</option>
+                                <option value="vibrant">🌈 Vibrant - Colorful purple and yellow</option>
+                            </optgroup>
                         </select>
                     </div>
                     <button type="submit" class="btn btn-generate">🎓 Preview Certificate</button>
