@@ -152,7 +152,17 @@ def template_gallery():
         flash('Please sign in first.', 'error')
         return redirect(url_for('signin'))
 
-    return render_template('template_gallery.html')
+    # Load user's custom designs
+    users = load_data(USERS_FILE)
+    user_name = session['user_id']
+    custom_designs = []
+    
+    for user in users:
+        if user['name'] == user_name:
+            custom_designs = user.get('custom_designs', [])
+            break
+
+    return render_template('template_gallery.html', custom_designs=custom_designs)
 
 @app.route('/update_marks', methods=['POST'])
 def update_marks():
@@ -178,6 +188,62 @@ def update_marks():
     save_data(USERS_FILE, users)
     flash('Marks updated successfully!', 'success')
     return redirect(url_for('student_dashboard'))
+
+@app.route('/generate_ai_design', methods=['POST'])
+def generate_ai_design():
+    if 'user_id' not in session:
+        flash('Please sign in first.', 'error')
+        return redirect(url_for('signin'))
+
+    # Get form data
+    design_description = request.form.get('design_description', '')
+    style_preference = request.form.get('style_preference', 'modern')
+    color_mood = request.form.get('color_mood', 'vibrant')
+
+    if not design_description.strip():
+        flash('Please provide a description for your certificate design.', 'error')
+        return redirect(url_for('template_gallery'))
+
+    # Generate AI design data (simulated)
+    design_name = f"ai_design_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    display_name = f"AI Design {datetime.now().strftime('%H:%M')}"
+    
+    # Create color palette based on mood
+    color_palettes = {
+        'vibrant': ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'],
+        'pastel': ['#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFFFBA', '#FFDFBA'],
+        'monochrome': ['#2C3E50', '#34495E', '#7F8C8D', '#BDC3C7', '#ECF0F1'],
+        'gradient': ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe'],
+        'neon': ['#00FFF0', '#FF00FF', '#00FF00', '#FFFF00', '#FF0080'],
+        'earthy': ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#F4A460']
+    }
+    
+    # Create the custom design object
+    custom_design = {
+        'name': design_name,
+        'display_name': display_name,
+        'description': design_description,
+        'style_preference': style_preference,
+        'color_mood': color_mood,
+        'color_palette': color_palettes.get(color_mood, color_palettes['vibrant']),
+        'created_at': datetime.now().isoformat()
+    }
+
+    # Save to user's custom designs
+    users = load_data(USERS_FILE)
+    user_name = session['user_id']
+    
+    for user in users:
+        if user['name'] == user_name:
+            if 'custom_designs' not in user:
+                user['custom_designs'] = []
+            user['custom_designs'].append(custom_design)
+            session['user_data'] = user
+            break
+
+    save_data(USERS_FILE, users)
+    flash(f'🎨 AI Design "{display_name}" created successfully!', 'success')
+    return redirect(url_for('template_gallery'))
 
 @app.route('/logout')
 def logout():
@@ -225,6 +291,25 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
         light_gray = '#FEF7ED'
         bg_gradient_start = (254, 252, 232)
         bg_gradient_end = (251, 246, 232)
+    elif template == 'custom' and custom_design:
+        # AI Custom design colors
+        palette = custom_design.get('color_palette', ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe'])
+        gold_color = palette[0] if len(palette) > 0 else '#667eea'
+        dark_gold = palette[1] if len(palette) > 1 else '#764ba2'
+        royal_blue = palette[2] if len(palette) > 2 else '#f093fb'
+        navy_blue = palette[3] if len(palette) > 3 else '#f5576c'
+        accent_blue = palette[4] if len(palette) > 4 else '#4facfe'
+        gray_color = '#374151'
+        light_gray = '#f8f9fa'
+        # Convert hex to RGB for gradient
+        def hex_to_rgb(hex_color):
+            hex_color = hex_color.lstrip('#')
+            return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        bg_gradient_start = hex_to_rgb(palette[0]) if len(palette) > 0 else (102, 126, 234)
+        bg_gradient_end = hex_to_rgb(palette[1]) if len(palette) > 1 else (118, 75, 162)
+        # Make gradient lighter
+        bg_gradient_start = tuple(min(255, c + 100) for c in bg_gradient_start)
+        bg_gradient_end = tuple(min(255, c + 120) for c in bg_gradient_end)
     else:  # vibrant
         # Vibrant template colors
         gold_color = '#EAB308'
@@ -236,17 +321,6 @@ def create_certificate(student_name, school_name, class_name, unit_marks, templa
         light_gray = '#F5F3FF'
         bg_gradient_start = (245, 243, 255)
         bg_gradient_end = (237, 233, 254)
-    
-    # Placeholder for custom design logic: If custom_design is provided, override default styles
-    if custom_design:
-        # Example: Apply a different background or border based on custom_design input
-        if custom_design.get("background_color"):
-            img = Image.new('RGB', (width, height), color=custom_design["background_color"])
-            draw = ImageDraw.Draw(img)
-        if custom_design.get("border_color"):
-            gold_color = custom_design["border_color"]
-        if custom_design.get("text_color"):
-            gray_color = custom_design["text_color"] # simplistic override for example
 
 
     # Create gradient background effect based on template
@@ -477,8 +551,16 @@ def preview_certificate():
 
     user_data = session.get('user_data')
     template = request.form.get('template', 'classic')
-    custom_design = request.json.get('custom_design') if request.is_json else None
+    custom_design_name = request.form.get('custom_design')
+    custom_design = None
 
+    # Check if it's a custom AI design
+    if custom_design_name and custom_design_name.startswith('ai_design_'):
+        for design in user_data.get('custom_designs', []):
+            if design['name'] == custom_design_name:
+                custom_design = design
+                template = 'custom'
+                break
 
     if not user_data.get('unit_marks'):
         flash('Please enter your unit marks first before generating certificate.', 'error')
@@ -514,7 +596,16 @@ def download_certificate():
 
     user_data = session.get('user_data')
     template = request.form.get('template', 'classic')
-    custom_design = request.json.get('custom_design') if request.is_json else None
+    custom_design_name = request.form.get('custom_design')
+    custom_design = None
+
+    # Check if it's a custom AI design
+    if custom_design_name and custom_design_name.startswith('ai_design_'):
+        for design in user_data.get('custom_designs', []):
+            if design['name'] == custom_design_name:
+                custom_design = design
+                template = 'custom'
+                break
 
     if not user_data.get('unit_marks'):
         flash('Please enter your unit marks first before generating certificate.', 'error')
