@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Syed Saqib",
+    "email": "syedsaqib8585@gmail.com",
+    "class": "10th",
+    "roll_no": "11",
+    "school": "Green valley educational institute.",
+    "marks": "95%",
+    "password": "saqib6565",
+    "status": "approved",
+    "signup_date": "2025-08-21T17:31:40.100688",
+    "unit_marks": {
+      "unit_1": "50",
+      "unit_2": "20",
+      "unit_3": "60",
+      "unit_4": "88",
+      "unit_5": "95"
+    }
+  }
+]
