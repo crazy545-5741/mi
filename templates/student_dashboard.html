@@ -283,6 +283,12 @@
                 </div>
                 {% endif %}
 
+                <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="color: #2d5a2d; margin-bottom: 10px;">🎨 Want to see all templates?</h4>
+                    <p style="color: #2d5a2d; margin-bottom: 10px; font-size: 0.9rem;">Browse our template gallery to see detailed previews of all certificate designs before choosing.</p>
+                    <a href="{{ url_for('template_gallery') }}" class="btn" style="display: inline-block; text-decoration: none; font-size: 0.9rem; padding: 8px 16px;">View Template Gallery</a>
+                </div>
+
                 <form method="POST" action="{{ url_for('preview_certificate') }}">
                     <div class="form-group">
                         <label for="template">Choose Certificate Template</label>

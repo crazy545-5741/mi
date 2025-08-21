@@ -147,6 +147,14 @@ def student_dashboard():
     user_data = session.get('user_data')
     return render_template('student_dashboard.html', user=user_data)
 
+@app.route('/template_gallery')
+def template_gallery():
+    if 'user_id' not in session:
+        flash('Please sign in first.', 'error')
+        return redirect(url_for('signin'))
+    
+    return render_template('template_gallery.html')
+
 @app.route('/update_marks', methods=['POST'])
 def update_marks():
     if 'user_id' not in session:
